@@ -130,7 +130,7 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="rounded-xl">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} className="rounded-xl">
               <User className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={signOut} className="rounded-xl">
