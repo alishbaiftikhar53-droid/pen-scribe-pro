@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { notesAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,11 +11,11 @@ import NoteEditor from '@/components/NoteEditor';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface Note {
-  id: string;
+  _id: string;
   title: string;
   content: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const Dashboard = () => {
@@ -41,12 +41,7 @@ const Dashboard = () => {
 
   const fetchNotes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('notes')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await notesAPI.getAll();
       setNotes(data || []);
     } catch (error: any) {
       toast.error('Failed to load notes');
@@ -68,14 +63,8 @@ const Dashboard = () => {
 
   const handleDeleteNote = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setNotes(notes.filter(note => note.id !== id));
+      await notesAPI.delete(id);
+      setNotes(notes.filter(note => note._id !== id));
       toast.success('Note deleted');
     } catch (error: any) {
       toast.error('Failed to delete note');
@@ -180,7 +169,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredNotes.map((note) => (
               <Card
-                key={note.id}
+                key={note._id}
                 className="group hover:shadow-[var(--shadow-card)] transition-all cursor-pointer"
               >
                 <CardContent className="p-6">
@@ -206,7 +195,7 @@ const Dashboard = () => {
                         className="h-8 w-8 text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteNote(note.id);
+                          handleDeleteNote(note._id);
                         }}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -217,7 +206,7 @@ const Dashboard = () => {
                     {note.content.replace(/<[^>]*>/g, '') || 'No content'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Updated {formatDate(note.updated_at)}
+                    Updated {formatDate(note.updatedAt)}
                   </p>
                 </CardContent>
               </Card>

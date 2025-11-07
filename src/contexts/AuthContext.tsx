@@ -1,12 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { authAPI, getToken, setToken, removeToken } from '@/lib/api';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  session: { token: string } | null;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -17,76 +22,63 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<{ token: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    // Check for existing token
+    const checkAuth = async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const { user } = await authAPI.getCurrentUser();
+          setUser(user);
+          setSession({ token });
+        } catch (error) {
+          removeToken();
+        }
       }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
       setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    checkAuth();
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {
-    const redirectUrl = `${window.location.origin}/dashboard`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          name: name,
-        }
-      }
-    });
-
-    if (error) {
+    try {
+      const data = await authAPI.signUp(email, password, name);
+      setToken(data.token);
+      setUser(data.user);
+      setSession({ token: data.token });
+      toast.success('Account created successfully!');
+      navigate('/dashboard');
+      return { error: null };
+    } catch (error: any) {
       toast.error(error.message);
       return { error };
     }
-
-    toast.success('Account created successfully!');
-    navigate('/dashboard');
-    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
+    try {
+      const data = await authAPI.signIn(email, password);
+      setToken(data.token);
+      setUser(data.user);
+      setSession({ token: data.token });
+      toast.success('Welcome back!');
+      navigate('/dashboard');
+      return { error: null };
+    } catch (error: any) {
       toast.error(error.message);
       return { error };
     }
-
-    toast.success('Welcome back!');
-    navigate('/dashboard');
-    return { error: null };
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    removeToken();
+    setUser(null);
+    setSession(null);
     toast.success('Logged out successfully');
     navigate('/auth');
   };

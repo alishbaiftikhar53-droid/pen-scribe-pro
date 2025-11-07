@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { profileAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +12,7 @@ interface Profile {
   name: string;
   email: string;
   bio: string;
-  created_at: string;
+  createdAt: string;
 }
 
 const Profile = () => {
@@ -37,18 +37,9 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      
-      if (data) {
-        setProfile(data);
-        setBio(data.bio || '');
-      }
+      const data = await profileAPI.get();
+      setProfile(data);
+      setBio(data.bio || '');
     } catch (error: any) {
       toast.error('Failed to load profile');
       console.error(error);
@@ -58,13 +49,7 @@ const Profile = () => {
   const handleSaveBio = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ bio })
-        .eq('id', user?.id);
-
-      if (error) throw error;
-
+      await profileAPI.update(bio);
       toast.success('Bio updated successfully');
       setIsEditing(false);
       fetchProfile();
@@ -135,7 +120,7 @@ const Profile = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground mb-1">Joined</p>
-                  <p className="font-medium">{formatDate(profile.created_at)}</p>
+                  <p className="font-medium">{formatDate(profile.createdAt)}</p>
                 </div>
               </div>
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { notesAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +7,7 @@ import { toast } from 'sonner';
 import { Save, X } from 'lucide-react';
 
 interface Note {
-  id?: string;
+  _id?: string;
   title: string;
   content: string;
 }
@@ -20,7 +19,6 @@ interface NoteEditorProps {
 }
 
 const NoteEditor = ({ note, onSave, onCancel }: NoteEditorProps) => {
-  const { user } = useAuth();
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
   const [saving, setSaving] = useState(false);
@@ -31,34 +29,14 @@ const NoteEditor = ({ note, onSave, onCancel }: NoteEditorProps) => {
   }, [note]);
 
   const handleSave = async () => {
-    if (!user) return;
-
     setSaving(true);
 
     try {
-      if (note?.id) {
-        // Update existing note
-        const { error } = await supabase
-          .from('notes')
-          .update({
-            title: title || 'Untitled',
-            content: content,
-          })
-          .eq('id', note.id);
-
-        if (error) throw error;
+      if (note?._id) {
+        await notesAPI.update(note._id, title || 'Untitled', content);
         toast.success('Note updated');
       } else {
-        // Create new note
-        const { error } = await supabase
-          .from('notes')
-          .insert({
-            user_id: user.id,
-            title: title || 'Untitled',
-            content: content,
-          });
-
-        if (error) throw error;
+        await notesAPI.create(title || 'Untitled', content);
         toast.success('Note created');
       }
 
@@ -76,7 +54,7 @@ const NoteEditor = ({ note, onSave, onCancel }: NoteEditorProps) => {
       {/* Editor Header */}
       <div className="flex items-center justify-between p-4 border-b bg-card">
         <h2 className="text-lg font-semibold">
-          {note?.id ? 'Edit Note' : 'New Note'}
+          {note?._id ? 'Edit Note' : 'New Note'}
         </h2>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" onClick={onCancel}>
